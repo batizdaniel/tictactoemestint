@@ -1,0 +1,458 @@
+http://borde.hu/wp-content/uploads/2014/09/tracEleresKivulrol.pdf
+
+import game.gmk.GomokuAction;
+import game.gmk.GomokuGame;
+import game.gmk.GomokuPlayer;
+
+import java.util.ArrayList;
+import java.util.Random;
+
+public class Agent extends GomokuPlayer {
+    private ArrayList<Integer> startcells;
+    public Agent(int color, int[][] board, Random random) {
+        super(color, board, random);
+    }
+
+    public boolean isAvailableCells(int[][] board) {
+        int sum = 0;
+        for (int i = 0; i < board.length; i++) {
+            for (int j = 0; j < board[i].length; j++) {
+                if (board[i][j] == GomokuGame.EMPTY) {
+                    sum++;
+                }
+            }
+        }
+        return sum != 0;
+    }
+
+    @Override
+    public GomokuAction getAction(GomokuAction prevAction, long[] remainingTimes) {
+
+        if (prevAction != null) {
+            board[prevAction.i][prevAction.j] = 1-color;
+            if(startcells!=null && startcells.contains(indexvalue(prevAction.i,prevAction.j))){
+                startcells.remove(startcells.indexOf(indexvalue(prevAction.i,prevAction.j)));
+            }
+            startcells = getPossiblecells(startcells,board,prevAction.i,prevAction.j);
+        } else {
+            startcells = getPossiblecells(new ArrayList<Integer>(),board,7,7);
+            board[7][7] = color;
+            return new GomokuAction(7,7);
+        }
+
+        /*
+
+               - Most az ellen kezd, így nem jó még
+                -Random seed se az igazi
+
+         */
+
+
+        int bestScore = Integer.MIN_VALUE;
+        int score;
+        int best_i = 0;
+        int best_j = 0;
+        for (int x = 0; x < startcells.size(); x++) {
+                int i = row(startcells.get(x));
+                int j = column(startcells.get(x));
+                if(i== 8 && j == 10){
+
+                    int alma = 10;
+                }
+
+                board[i][j] = color;
+                ArrayList<Integer> nextcells = getPossiblecells(startcells,board,i,j);
+
+                score = minimax(board, 2, true,1-color,nextcells,i,j);
+                board[i][j] = GomokuGame.EMPTY;
+                if( score > bestScore){
+                    bestScore = score;
+                    best_i = i;
+                    best_j = j;
+                }
+        }
+        if(startcells.contains(indexvalue(best_i,best_j))){
+            startcells.remove(startcells.indexOf(indexvalue(best_i,best_j)));
+        }
+        startcells = getPossiblecells(startcells,board,best_i,best_j);
+        board[best_i][best_j] = color;
+        return new GomokuAction(best_i,best_j);
+
+    }
+
+    public int minimax(int[][] board, int depth, boolean isMax,int asd,ArrayList<Integer> possiblecells, int row,int column) {
+
+        if(depth==0){
+            return heuristic(get_area(board,row,column),asd);
+        }
+
+        if (isMax) {
+            int bestScore = heuristic(get_area(board,row,column),asd);
+            for (int x = 0; x < possiblecells.size(); x++) {
+                    int i = row(possiblecells.get(x));
+                    int j = column(possiblecells.get(x));
+
+                    board[i][j] = asd;
+                    ArrayList<Integer> nextcells = getPossiblecells(possiblecells,board,i,j);
+
+                    int currentscore = minimax(board, depth - 1, false,1-asd,nextcells,i,j);
+                    board[i][j] = GomokuGame.EMPTY;
+                    bestScore = Math.max(currentscore, bestScore);
+
+            }
+            return bestScore;
+        } else {
+            int bestScore = heuristic(get_area(board,row,column),asd);
+            for (int x = 0; x < possiblecells.size(); x++) {
+                    int i = row(possiblecells.get(x));
+                    int j = column(possiblecells.get(x));
+
+
+                    board[i][j] = asd;
+                    ArrayList<Integer> nextcells = getPossiblecells(possiblecells,board,i,j);
+
+                    int currentscore = minimax(board, depth - 1, true,1-asd,nextcells,i,j);
+                    board[i][j] = GomokuGame.EMPTY;
+                    bestScore = Math.min(currentscore, bestScore);
+
+
+            }
+            return bestScore;
+        }
+    }
+
+    public static ArrayList<Integer> getPossiblecells(ArrayList<Integer> previouscells, int[][] board,int i, int j) {
+        if(previouscells == null){
+            previouscells = new ArrayList<Integer>();
+        }
+        ArrayList<Integer> nextcells = new ArrayList<>(previouscells);
+        for(int k = -1 ; k<=1; ++k){
+            for( int l = -1 ; l<=1; ++l){
+                int move_i = wallchecker(i+k);
+                int move_j = wallchecker(j+l);
+                if(board[move_i][move_j] == 2 && !nextcells.contains(((move_i)*100)+move_j) && !(k==0 && l==0)) {
+                    nextcells.add(((move_i)*100)+move_j);
+                }
+            }
+            if(nextcells.contains((i*100)+j)){
+                nextcells.remove(nextcells.indexOf((i*100)+j));
+            }
+        }
+        return nextcells;
+    }
+
+    public static int indexvalue(int i,int j){
+        return  i*100 + j;
+    }
+
+    //sor i / 100
+    public static int row(int koordinata){
+        return koordinata / 100;
+    }
+    //oszlop j / 100
+    public static int column(int koordinata){
+        return koordinata % 100;
+    }
+
+    public static int wallchecker(int szam){
+        if(szam < 0){
+            szam = 15+szam;
+        }
+        if(szam > 14){
+            szam = szam-15;
+        }
+        return szam;
+    }
+
+    public static int[][] get_area(int[][] board,int i,int j){
+        int start_i = i-4;
+        int start_j = j-4;
+
+        int[][] area = new int[9][9];
+
+        for (int a = 0; a < 9; ++a){
+            for (int b = 0; b < 9; ++b){
+                start_i = wallchecker(start_i);
+                start_j = wallchecker(start_j);
+
+                area[a][b] = board[start_i][start_j];
+                start_j++;
+
+            }
+            start_j = j-4;
+            start_i++;
+        }
+        return area;
+    }
+
+     /*
+       1. S_darab*10 + (Sorban mennyi van belőle?) 10^S_darab +- (Levanezarva?) 40
+       2. E_darab*10 + (Sorban mennyi van belőle?) 10^E_darab +- (Levanezarva?) 40
+
+       Heurisztika : 1. + 2.
+     */
+    public static int pow(int darab){
+        if(darab == 0){
+         return 0;
+        }
+        return (int) Math.pow(10,darab);
+    }
+    public static int calculate(int s_darab,int e_darab,boolean isclosed){
+        int elso = (s_darab*10 + pow(s_darab)) + (isclosed ? -40 : +40);
+        int masodik = (e_darab*10 + pow(e_darab)) + (isclosed ? -40 : +40);
+
+        return elso + masodik;
+    }
+
+    //Horizontal
+    //
+    public static int horizontal(int[][] area, int color){
+        int S_darab = 0;
+        int E_darab = 0;
+        boolean isClosed = false;
+
+
+        //Balra
+        //
+        for(int i = 1; i <=4; ++i){
+
+            if(area[4][4-i] == 1-color && !isClosed){
+                E_darab++;
+            }
+            if(area[4][4-i] == color && !isClosed){
+                S_darab++;
+            }
+            if(i<4 && area[4][4-i] != area[4][4-(i+1)] && area[4][4-i] !=2 && area[4][4-(i+1)] != 2){
+                isClosed = true;
+            }
+            if(area[4][4-i] == 3 ){
+                isClosed = true;
+                break;
+            }
+
+        }
+        //Jobbra
+        //
+        for(int i = 1; i <=4; ++i){
+            if(area[4][4+i] == 1-color && !isClosed){
+                E_darab++;
+            }
+            if(area[4][4+i]  == color && !isClosed){
+                S_darab++;
+            }
+            if(i<4 && area[4][4+i] != area[4][4+i+1] && area[4][4+i] != 2 && area[4][4+i+1] != 2){
+                isClosed = true;
+            }
+            if(area[4][4+i] == 3 ){
+                isClosed = true;
+                break;
+            }
+        }
+        if(!isClosed && S_darab == 0 && E_darab == 0){
+            return 0;
+        }
+        if(E_darab == 5 ){
+            return Integer.MIN_VALUE;
+        }
+        if(S_darab == 5){
+            return Integer.MAX_VALUE;
+        }
+        if(area[4][3] != area[4][5] && area[4][3] !=2 && area[4][5] != 2) isClosed = true;
+
+        return calculate(S_darab,E_darab,isClosed);
+    }
+
+    //Vertical
+    //
+    //
+    public static int vertical(int[][] area, int color){
+        int S_darab = 0;
+        int E_darab = 0;
+        boolean isClosed = false;
+
+        //Fel
+        //
+        for(int j = 1; j <=4; ++j){
+
+            if(area[4-j][4] == 1-color && !isClosed){
+                E_darab++;
+            }
+            if(area[4-j][4] == color && !isClosed){
+                S_darab++;
+            }
+            if( j<4 &&  area[4-j][4] != area[4-(j+1)][4] && area[4-j][4]!=2 && area[4-(j+1)][4] != 2){
+                isClosed = true;
+            }
+            if(area[4-j][4] == 3 ){
+                isClosed = true;
+                break;
+            }
+        }
+        //Le
+        //
+        for(int j = 1; j <=4; ++j){
+            if(area[4+j][4] == 1-color && !isClosed){
+                E_darab++;
+            }
+            if(area[4+j][4] == color && !isClosed){
+                S_darab++;
+            }
+            if( j<4 && area[4+j][4] != area[4+j+1][4] && area[4+j][4] !=2 &&area[4+j+1][4] != 2){
+                isClosed = true;
+            }
+            if(area[4+j][4] == 3 ){
+                isClosed = true;
+                break;
+            }
+        }
+        if(!isClosed && S_darab == 0 && E_darab == 0){
+            return 0;
+        }
+        if(E_darab == 5 ){
+            return Integer.MIN_VALUE;
+        }
+        if(S_darab == 5){
+            return Integer.MAX_VALUE;
+        }
+        if(area[3][4] != area[5][4] && area[3][4] !=2 && area[5][4] != 2) isClosed = true;
+
+        return calculate(S_darab,E_darab,isClosed);
+    }
+
+    //Diagonal
+    //
+    //
+    public static int diagonal(int[][] area, int color){
+        int S_darab = 0;
+        int E_darab = 0;
+        boolean isClosed = false;
+
+        //Diagonal-Down
+        //
+        for(int i = 1; i <=4; ++i){
+
+            if(area[4+i][4-i] == 1-color && !isClosed){
+                E_darab++;
+            }
+            if(area[4+i][4-i] == color && !isClosed){
+                S_darab++;
+            }
+            if(i<4 && area[4+i][4-i] != area[4+(i+1)][4-(i+1)] && area[4+i][4-i]!=2 && area[4+(i+1)][4-(i+1)] != 2){
+                isClosed = true;
+            }
+            if(area[4+i][4-i] == 3 ){
+                isClosed = true;
+                break;
+            }
+        }
+        //Diagonal-Up
+        //
+        for(int i = 1; i <=4; ++i){
+
+            if(area[4-i][4+i] == 1-color && !isClosed){
+                E_darab++;
+            }
+            if(area[4-i][4+i] == color && !isClosed){
+                S_darab++;
+            }
+            if(i<4 &&  area[4-i][4+i] != area[4-(i+1)][4+(i+1)] && area[4-i][4+i]!=2 && area[4-(i+1)][4+(i+1)] != 2){
+                isClosed = true;
+            }
+            if(area[4-i][4+i] == 3 ){
+                isClosed = true;
+                break;
+            }
+        }
+        if(!isClosed && S_darab == 0 && E_darab == 0){
+            return 0;
+        }
+        if(E_darab == 5 ){
+            return Integer.MIN_VALUE;
+        }
+        if(S_darab == 5){
+            return Integer.MAX_VALUE;
+        }
+        if(area[3][5] != area[5][3] && area[3][5] !=2 && area[5][3] != 2) isClosed = true;
+        return calculate(S_darab,E_darab,isClosed);
+    }
+
+    //Anti-Diagonal
+    //
+    //
+    public static int antidiagonal(int[][] area, int color){
+        int S_darab = 0;
+        int E_darab = 0;
+        boolean isClosed = false;
+
+        //Anti-Diagonal-Up
+        //
+        for(int i = 1; i <=4; ++i){
+
+            if(area[4-i][4-i] == 1-color && !isClosed){
+                E_darab++;
+            }
+            if(area[4-i][4-i] == color && !isClosed){
+                S_darab++;
+            }
+            if(i<4 &&  area[4-i][4-i] != area[4-(i+1)][4-(i+1)] && area[4-i][4-i]!=2 && area[4-(i+1)][4-(i+1)] != 2){
+                isClosed = true;
+            }
+            if(area[4-i][4-i] == 3 ){
+                isClosed = true;
+                break;
+            }
+        }
+
+        //Anti-Diagonal-Down
+        //
+        for(int i = 1; i <=4; ++i) {
+
+            if (area[4 + i][4 + i] == 1 - color && !isClosed) {
+                E_darab++;
+            }
+            if (area[4 + i][4 + i] == color && !isClosed) {
+                S_darab++;
+            }
+            if (i<4 &&  area[4 + i][4 + i] != area[4 + (i + 1)][4 + (i + 1)] && area[4 + i][4 + i]!=2 && area[4 + (i + 1)][4 + (i + 1)] != 2) {
+                isClosed = true;
+            }
+            if (area[4 + i][4 + i] == 3) {
+                isClosed = true;
+                break;
+            }
+        }
+        if(!isClosed && S_darab == 0 && E_darab == 0){
+            return 0;
+        }
+        if(E_darab == 5 ){
+            return Integer.MIN_VALUE;
+        }
+        if(S_darab == 5){
+            return Integer.MAX_VALUE;
+        }
+        if(area[3][3] != area[5][5] && area[3][3] !=2 && area[5][5] != 2) isClosed = true;
+        return calculate(S_darab,E_darab,isClosed);
+    }
+
+    public static int heuristic(int[][] area,int color) {
+
+        //Hori_heu
+        //
+        int horizontal = horizontal(area,color);
+
+        //Vertical
+        //
+        int vertical = vertical(area,color);
+
+        //Diagonal
+        //
+        int diagonal = diagonal(area,color);
+
+        //Antidiagonal
+        //
+        int antidiagonal = antidiagonal(area,color);
+
+        return horizontal + vertical + diagonal + antidiagonal;
+    }
+
+}
